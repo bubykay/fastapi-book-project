@@ -13,6 +13,7 @@ db.books = {
         id=1,
         title="The Hobbit",
         author="J.R.R. Tolkien",
+        test="test if working",
         publication_year=1937,
         genre=Genre.SCI_FI,
     ),

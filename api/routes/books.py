@@ -56,7 +56,7 @@ async def update_book(book_id: int, book: Book) -> Book:
         content=db.update_book(book_id, book).model_dump(),
     )
     
-@router.get("/{book_id}", status_code=status.HTTP_200_OK)
+@router.get("/{book_id}", response_model=Book, status_code=status.HTTP_200_OK)
 async def get_book(book_id: int):
     book = db.get_book(book_id)
     if not book:
@@ -64,7 +64,11 @@ async def get_book(book_id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail="Book not found"
         )
     
-    return "hello world"
+    return book
+
+@router.get("/{book_id}/test", status_code=status.HTTP_200_OK)
+async def test_book():
+    return "testing book"
 
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)

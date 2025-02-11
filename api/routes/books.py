@@ -68,7 +68,7 @@ async def get_book(book_id: int):
 
 @router.get("/{book_id}/test", status_code=status.HTTP_200_OK)
 async def test_book():
-    return "testing book seems fine"
+    return "NO WORRIES I GUESS"
 
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)

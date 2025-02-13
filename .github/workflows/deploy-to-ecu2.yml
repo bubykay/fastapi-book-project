@@ -38,13 +38,14 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
-            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
-            docker stop fastapi-app-kayode || true
-            docker rm fastapi-app-kayode || true
-            docker run -d -p 8000:8000 --name fastapi-app-kayode ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
-            docker image prune -f  # Removes unused and dangling images
-            EOF
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            sudo usermod -aG docker $USER || true  # Add user to Docker group if not already added
+            newgrp docker || true                  # Refresh group membership
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
+            sudo docker stop fastapi-app-kayode || true
+            sudo docker rm fastapi-app-kayode || true
+            sudo docker run -d -p 8000:8000 --name fastapi-app-kayode ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
+          EOF
 
       - name: Check Deployment Health
         run: |
@@ -60,6 +61,6 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
+          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
             docker logs fastapi-app-kayode
-            EOF
+          EOF

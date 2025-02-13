@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t fastapi-app-kayode .
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Tag Docker Image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker tag fastapi-app-kayode ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:$IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Push Docker Image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Deploy to EC2
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
+            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
+            docker stop fastapi-app-kayode || true
+            docker rm fastapi-app-kayode || true
+            docker run -d -p 8000:8000 --name fastapi-app-kayode ${{ secrets.DOCKER_USERNAME }}/fastapi-app-kayode:${{ env.IMAGE_TAG }}
+            docker image prune -f  # Removes unused and dangling images
+            EOF
+
+      - name: Check Deployment Health
+        run: |
+          for i in {1..10}; do
+            curl -f http://${{ secrets.DEPLOYMENT_URL }}/healthcheck && exit 0 || echo "Waiting for app..."
+            sleep 5
+          done
+          echo "App failed to start" && exit 1
+
+      - name: Debug Logs on Failure
+        if: failure()
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+           ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
+            docker logs fastapi-app-kayode
+            EOF
